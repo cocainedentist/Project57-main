@@ -7,7 +7,6 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/ChildActorComponent.h"
-#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "EnhancedInputComponent.h"
 #include "../Weapon/WeaponBase.h"
@@ -44,12 +43,13 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//���� ������ ��� �̵�
+	//무기 집으면 잡게 이동
 	AWeaponBase* ChildWeapon = Cast<AWeaponBase>(Weapon->GetChildActor());
 	if (ChildWeapon)
 	{
 		ChildWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, ChildWeapon->SocketName);
 		WeaponState = EWeaponState::Pistol;
+		ChildWeapon->SetOwner(this);
 	}
 
 }
@@ -70,7 +70,8 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	if (UIC)
 	{
 		UIC->BindAction(IA_Reload, ETriggerEvent::Completed, this, &ABaseCharacter::Reload);
-		UIC->BindAction(IA_Fire, ETriggerEvent::Triggered, this, &ABaseCharacter::DoFire);
+		UIC->BindAction(IA_Fire, ETriggerEvent::Started, this, &ABaseCharacter::StartFire);
+		UIC->BindAction(IA_Fire, ETriggerEvent::Completed, this, &ABaseCharacter::StopFire);
 	}
 
 }
@@ -109,89 +110,27 @@ void ABaseCharacter::Reload()
 
 void ABaseCharacter::DoFire()
 {
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (PC)
+	AWeaponBase* ChildWeapon = Cast<AWeaponBase>(Weapon->GetChildActor());
+	if (ChildWeapon)
 	{
-		int32 SizeX = 0;
-		int32 SizeY = 0;
-		int32 CenterX = 0;
-		int32 CenterY = 0;
-		FVector WorldDirection;
-		FVector WorldLocation;
-		FVector CameraLocation;
-		FRotator CameraRotation;
-
-		PC->GetViewportSize(SizeX, SizeY);
-		CenterX = SizeX / 2;
-		CenterY = SizeY / 2;
-
-		PC->DeprojectScreenPositionToWorld((float)CenterX, (float)CenterY,
-			WorldLocation, WorldDirection);
-
-		PC->GetPlayerViewPoint(CameraLocation, CameraRotation);
-
-		FVector Start = CameraLocation;
-		FVector End = CameraLocation + WorldDirection * 100000.0f;
-
-		TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-		ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_WorldStatic));
-		ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_WorldDynamic));
-		ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_PhysicsBody));
-
-		TArray<AActor*> IngnoreActors;
-		FHitResult HitResult;
-
-		bool bResult = UKismetSystemLibrary::LineTraceSingleForObjects(
-			GetWorld(),
-			Start,
-			End,
-			ObjectTypes,
-			true,
-			IngnoreActors,
-			EDrawDebugTrace::ForDuration,
-			HitResult,
-			true
-		);
-
-		if (bResult)
-		{
-			//RPG 
-			//UGameplayStatics::ApplyDamage(HitResult.GetActor(),
-			//	50,
-			//	GetController(),
-			//	this,
-			//	UBaseDamageType::StaticClass()
-			//);
-
-			//Point Damage
-			UGameplayStatics::ApplyPointDamage(HitResult.GetActor(),
-				50,
-				-HitResult.ImpactNormal,
-				HitResult,
-				GetController(),
-				this,
-				UBaseDamageType::StaticClass()
-			);
-
-			////Radial Damage
-			/*UGameplayStatics::ApplyRadialDamage(HitResult.GetActor(),
-				50,
-				HitResult.ImpactPoint,
-				300.0f,
-				UBaseDamageType::StaticClass(),
-				IngnoreActors,
-				this,
-				GetController(),
-				true
-			);*/
-		}
-
+		ChildWeapon->Fire();
 	}
-	//AWeaponBase* ChildWeapon = Cast<AWeaponBase>(Weapon->GetChildActor());
-	//if (ChildWeapon)
-	//{
-	//	ChildWeapon->Fire();
-	//}
+}
+
+void ABaseCharacter::StartFire()
+{
+	bIsFire = true;
+	DoFire();
+}
+
+void ABaseCharacter::StopFire()
+{
+	bIsFire = false;
+	AWeaponBase* ChildWeapon = Cast<AWeaponBase>(Weapon->GetChildActor());
+	if (ChildWeapon)
+	{
+		ChildWeapon->StopFire();
+	}
 }
 
 void ABaseCharacter::HitReaction()
@@ -214,6 +153,10 @@ float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 {
 	Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
+	if (CurrentHP <= 0)
+	{
+		return DamageAmount;
+	}
 	
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
@@ -241,15 +184,38 @@ float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 		UE_LOG(LogTemp, Warning, TEXT("Damage %f"), DamageAmount);
 	}
 
+	DoHitReact();
 
 
 	if (CurrentHP <= 0)
 	{
-		FString SectionName = FString::Printf(TEXT("%d"), FMath::RandRange(1, 6));
+		//죽는다. 애님 몽타주 재생
+		//네트워크 할려면 다 RPC로 작업해 됨
+		/*FString SectionName = FString::Printf(TEXT("%d"), FMath::RandRange(1, 6));
 		PlayAnimMontage(DeathMontage, 1.0, FName(*SectionName));
 		GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
-		GetMesh()->SetSimulatePhysics(true);
+		GetMesh()->SetSimulatePhysics(true);*/
+		DoDead();
 	}
 
-	return 0.0f;
+	return DamageAmount;
+}
+
+void ABaseCharacter::DoDeadEnd()
+{
+	GetController()->SetActorEnableCollision(false);
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetMesh()->SetSimulatePhysics(true);
+}
+
+void ABaseCharacter::DoDead()
+{
+	FName SectionName = FName(FString::Printf(TEXT("%d"), FMath::RandRange(1, 6)));
+	PlayAnimMontage(DeathMontage, 1.0f, SectionName);
+}
+
+void ABaseCharacter::DoHitReact()
+{
+	FName SectionName = FName(FString::Printf(TEXT("%d"), FMath::RandRange(1, 8)));
+	PlayAnimMontage(HitMontage, 1.0f, SectionName);
 }

@@ -74,6 +74,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void DoFire();
 
+	UFUNCTION(BlueprintCallable)
+	void StartFire();
+
+	UFUNCTION(BlueprintCallable)
+	void StopFire();
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
 	uint8 bSprint : 1;
 
@@ -117,8 +123,20 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
 	float MaxHP = 100;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
+	uint8 bIsFire : 1 = false;
+
 
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
+
+	UFUNCTION(BlueprintCallable)
+	void DoDeadEnd();
+
+	UFUNCTION(BlueprintCallable)
+	void DoDead();
+
+	UFUNCTION(BlueprintCallable)
+	void DoHitReact();
 };
