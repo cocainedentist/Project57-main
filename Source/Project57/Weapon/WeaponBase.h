@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "../Base/ItemBase.h"
 #include "WeaponBase.generated.h"
 
 class USkeletalMeshComponent;
@@ -11,7 +12,7 @@ class AProjectileBase;
 class UAnimMontage;
 
 UCLASS()
-class PROJECT57_API AWeaponBase : public AActor
+class PROJECT57_API AWeaponBase : public AItemBase
 {
 	GENERATED_BODY()
 	
@@ -37,6 +38,9 @@ public:
 	FName SocketName = TEXT("HandGrip_R");
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
+	FName Name;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
 	int32 MaxBulletCount = 100;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
@@ -47,6 +51,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
 	TObjectPtr<UAnimMontage> ReloadMontage;
+
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
+	TObjectPtr<UParticleSystem> MuzzleFlash;
 
 	UFUNCTION(BlueprintCallable)
 	void Reload();
@@ -63,14 +71,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
 	uint8 bFullAuto : 1 = false;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data, meta = (ClampMin = 0.1f, ClampMax = 2.0f, Unit = "s"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data, meta = (ClampMin = 0.1f, ClampMax = 2.0f, Unit ="s") )
 	float RefireRate = 0.5f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
 	float TimeofLastShoot = 0.0f;
 
 	UFUNCTION(BlueprintCallable)
-	void FireProjectile();
+	void FireProjectile(FTransform SpawnTransform, FHitResult InHitResult);
 
 	FTimerHandle RefireTimer;
+
 };

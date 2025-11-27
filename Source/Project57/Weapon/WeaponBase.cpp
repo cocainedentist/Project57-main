@@ -10,6 +10,9 @@
 #include "Engine/DamageEvents.h"
 #include "GameFramework/Character.h"
 #include "TimerManager.h"
+#include "ProjectileBase.h"
+#include "Kismet/KismetMathLibrary.h"
+
 
 
 // Sets default values
@@ -59,8 +62,6 @@ void AWeaponBase::Fire()
 
 	ACharacter* Character = Cast<ACharacter>(GetOwner());
 
-	ensure(Character);
-	//check(Character);
 	if (!Character)
 	{
 		return;
@@ -96,6 +97,7 @@ void AWeaponBase::Fire()
 		ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECollisionChannel::ECC_PhysicsBody));
 
 		TArray<AActor*> IngnoreActors;
+		IngnoreActors.Add(GetOwner());
 		FHitResult HitResult;
 
 		bool bResult = UKismetSystemLibrary::LineTraceSingleForObjects(
@@ -105,44 +107,30 @@ void AWeaponBase::Fire()
 			ObjectTypes,
 			true,
 			IngnoreActors,
-			EDrawDebugTrace::ForDuration,
+			EDrawDebugTrace::None,
 			HitResult,
 			true
 		);
 
-		if (bResult)
-		{
-			//RPG 
-			//UGameplayStatics::ApplyDamage(HitResult.GetActor(),
-			//	50,
-			//	PC,
-			//	this,
-			//	UBaseDamageType::StaticClass()
-			//);
+		//Calculate
+		FVector SpawnLocation = Mesh->GetSocketLocation(TEXT("Muzzle"));
+		FVector TargetLocation = bResult ? HitResult.ImpactPoint : End;
+		FVector BulletDirection = (TargetLocation - SpawnLocation).GetSafeNormal();
 
-			//ÃÑ½î´Â µ¥¹ÌÁö
-			UGameplayStatics::ApplyPointDamage(HitResult.GetActor(),
-				10,
-				-HitResult.ImpactNormal,
-				HitResult,
-				PC,
-				this,
-				UBaseDamageType::StaticClass()
-			);
+		FRotator AimRotation = UKismetMathLibrary::FindLookAtRotation(SpawnLocation, TargetLocation + (UKismetMathLibrary::RandomUnitVector() * 0.3f));
 
-			////¹üÀ§ °ø°Ý, ÆøÅº
-			//UGameplayStatics::ApplyRadialDamage(HitResult.GetActor(),
-			//	10,
-			//	HitResult.ImpactPoint,
-			//	300.0f,
-			//	UBaseDamageType::StaticClass(),
-			//	IngnoreActors,
-			//	this,
-			//	PC,
-			//	true
-			//);
-		}
 
+		FireProjectile(FTransform(AimRotation, SpawnLocation, FVector::OneVector),
+			HitResult);
+
+		UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), MuzzleFlash,
+			SpawnLocation,
+			AimRotation
+			
+		);
+
+		//Recoil
+		Character->AddControllerPitchInput(-0.05f);
 	}
 
 	CurrentBulletCount--;
@@ -153,11 +141,15 @@ void AWeaponBase::Fire()
 
 }
 
-void AWeaponBase::FireProjectile()
+void AWeaponBase::FireProjectile(FTransform SpawnTransform, FHitResult InHitResult)
 {
+	AProjectileBase* Projectile = GetWorld()->SpawnActor<AProjectileBase>(ProjectileTemplate, SpawnTransform);
+	Projectile->HitResult = InHitResult;
 }
+
 
 void AWeaponBase::StopFire()
 {
 	GetWorld()->GetTimerManager().ClearTimer(RefireTimer);
 }
+

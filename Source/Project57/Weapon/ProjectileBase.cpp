@@ -5,6 +5,8 @@
 #include "GameFramework/ProjectileMovementComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/BoxComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Components/DecalComponent.h"
 
 // Sets default values
 AProjectileBase::AProjectileBase()
@@ -28,6 +30,8 @@ AProjectileBase::AProjectileBase()
 void AProjectileBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	OnActorBeginOverlap.AddDynamic(this, &AProjectileBase::ProcessBeginOverlap);
 	
 }
 
@@ -38,3 +42,45 @@ void AProjectileBase::Tick(float DeltaTime)
 
 }
 
+void AProjectileBase::ProcessBeginOverlap(AActor* OverlapedActor, AActor* OtherActor)
+{
+	UDecalComponent* MadeDecal = UGameplayStatics::SpawnDecalAtLocation(GetWorld(),
+		Decal,
+		FVector(5, 5, 5),
+		HitResult.ImpactPoint,
+		HitResult.ImpactNormal.Rotation(),
+		5.f
+	);
+
+	MadeDecal->SetFadeScreenSize(0.005f);
+
+	//RPG 
+//UGameplayStatics::ApplyDamage(HitResult.GetActor(),
+//	50,
+//	PC,
+//	this,
+//	UBaseDamageType::StaticClass()
+//);
+
+//ÃÑ½î´Â µ¥¹ÌÁö
+	//UGameplayStatics::ApplyPointDamage(HitResult.GetActor(),
+	//	10,
+	//	-HitResult.ImpactNormal,
+	//	HitResult,
+	//	PC,
+	//	this,
+	//	UBaseDamageType::StaticClass()
+	//);
+
+	////¹üÀ§ °ø°Ý, ÆøÅº
+	//UGameplayStatics::ApplyRadialDamage(HitResult.GetActor(),
+	//	10,
+	//	HitResult.ImpactPoint,
+	//	300.0f,
+	//	UBaseDamageType::StaticClass(),
+	//	IngnoreActors,
+	//	this,
+	//	PC,
+	//	true
+	//);
+}

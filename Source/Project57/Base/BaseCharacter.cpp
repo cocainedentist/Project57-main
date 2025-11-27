@@ -1,4 +1,4 @@
-Ôªø// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "BaseCharacter.h"
@@ -14,13 +14,14 @@
 #include "Kismet/GameplayStatics.h"
 #include "../Weapon/BaseDamageType.h"
 #include "Engine/DamageEvents.h"
+#include "PickupItemBase.h"
 
 
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
 {
-	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+ 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
@@ -43,15 +44,7 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	//Î¨¥Í∏∞ ÏßëÏúºÎ©¥ Ïû°Í≤å Ïù¥Îèô
-	AWeaponBase* ChildWeapon = Cast<AWeaponBase>(Weapon->GetChildActor());
-	if (ChildWeapon)
-	{
-		ChildWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, ChildWeapon->SocketName);
-		WeaponState = EWeaponState::Pistol;
-		ChildWeapon->SetOwner(this);
-	}
-
+	OnActorBeginOverlap.AddDynamic(this, &ABaseCharacter::ProcessBeginOverlap);
 }
 
 // Called every frame
@@ -69,16 +62,25 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	UEnhancedInputComponent* UIC = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 	if (UIC)
 	{
-		UIC->BindAction(IA_Reload, ETriggerEvent::Completed, this, &ABaseCharacter::Reload);
-		UIC->BindAction(IA_Fire, ETriggerEvent::Started, this, &ABaseCharacter::StartFire);
-		UIC->BindAction(IA_Fire, ETriggerEvent::Completed, this, &ABaseCharacter::StopFire);
+		UIC->BindAction(IA_Reload, ETriggerEvent::Completed, this,
+			&ABaseCharacter::Reload);
+
+		UIC->BindAction(IA_Fire, ETriggerEvent::Started, this,
+			&ABaseCharacter::StartFire);
+		UIC->BindAction(IA_Fire, ETriggerEvent::Completed, this,
+			&ABaseCharacter::StopFire);
+
+		UIC->BindAction(IA_IronSight, ETriggerEvent::Started, this,
+			&ABaseCharacter::StartIronSight);
+		UIC->BindAction(IA_IronSight, ETriggerEvent::Completed, this,
+			&ABaseCharacter::StopIronSight);
 	}
 
 }
 
 void ABaseCharacter::Move(float Forward, float Right)
 {
-	const FRotator CameraRotation = GetController()->GetControlRotation();
+	const FRotator CameraRotation =  GetController()->GetControlRotation();
 	const FRotator YawRotation = FRotator(0, CameraRotation.Yaw, 0);
 	const FRotator YawRollRotation = FRotator(0, CameraRotation.Yaw, CameraRotation.Roll);
 
@@ -90,7 +92,7 @@ void ABaseCharacter::Move(float Forward, float Right)
 	AddMovementInput(RightVector, Right);
 
 
-	//	AddMovementInput(FVector(Forward, Right, 0));
+//	AddMovementInput(FVector(Forward, Right, 0));
 }
 
 void ABaseCharacter::Look(float Pitch, float Yaw)
@@ -137,7 +139,7 @@ void ABaseCharacter::HitReaction()
 {
 	FString SectionName = FString::Printf(TEXT("%d"), FMath::RandRange(1, 8));
 
-	PlayAnimMontage(HitMontage, 1.0, FName(*SectionName));
+	PlayAnimMontage(HitMontage, 1.0, FName(*SectionName) );
 }
 
 void ABaseCharacter::ReloadWeapon()
@@ -157,7 +159,7 @@ float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 	{
 		return DamageAmount;
 	}
-	
+
 	if (DamageEvent.IsOfType(FPointDamageEvent::ClassID))
 	{
 		FPointDamageEvent* Event = (FPointDamageEvent*)(&DamageEvent);
@@ -165,7 +167,7 @@ float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 		{
 			CurrentHP -= DamageAmount;
 
-			UE_LOG(LogTemp, Warning, TEXT("Point Damage %f %s"), DamageAmount, *(Event->HitInfo.BoneName.ToString()));
+			 UE_LOG(LogTemp, Warning, TEXT("Point Damage %f %s"), DamageAmount, *(Event->HitInfo.BoneName.ToString()));
 		}
 	}
 	else if (DamageEvent.IsOfType(FRadialDamageEvent::ClassID))
@@ -187,14 +189,11 @@ float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 	DoHitReact();
 
 
+
 	if (CurrentHP <= 0)
 	{
-		//Ï£ΩÎäîÎã§. Ïï†Îãò Î™ΩÌÉÄÏ£º Ïû¨ÏÉù
-		//ÎÑ§Ìä∏ÏõåÌÅ¨ Ìï†Î†§Î©¥ Îã§ RPCÎ°ú ÏûëÏóÖÌï¥ Îê®
-		/*FString SectionName = FString::Printf(TEXT("%d"), FMath::RandRange(1, 6));
-		PlayAnimMontage(DeathMontage, 1.0, FName(*SectionName));
-		GetMesh()->SetCollisionProfileName(TEXT("Ragdoll"));
-		GetMesh()->SetSimulatePhysics(true);*/
+		//¡◊¥¬¥Ÿ. æ÷¥‘ ∏˘≈∏¡÷ ¿Áª˝
+		//≥◊∆Æøˆ≈© «“∑¡∏È ¥Ÿ RPC∑Œ ¿€æ˜«ÿ µ 
 		DoDead();
 	}
 
@@ -218,4 +217,89 @@ void ABaseCharacter::DoHitReact()
 {
 	FName SectionName = FName(FString::Printf(TEXT("%d"), FMath::RandRange(1, 8)));
 	PlayAnimMontage(HitMontage, 1.0f, SectionName);
+
+	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BloodEffect,
+		this->GetActorLocation(), // ¿ßƒ°º≥¡§«ÿ¡÷±‚
+		this->GetActorRotation()
+	);
+}
+
+void ABaseCharacter::ProcessBeginOverlap(AActor* OverlappedActor, AActor* OtherActor)
+{
+	AProjectileBase* Bullet = Cast<AProjectileBase>(OtherActor);
+	if (Bullet)
+	{
+		DoHitReact();
+	}
+
+	APickupItemBase* PickedUpItem = Cast<APickupItemBase>(OtherActor);
+
+	if (PickedUpItem)
+	{
+		switch (PickedUpItem->ItemType)
+		{
+		case EItemType::Use: //Game Ability System
+			UseItem(PickedUpItem);
+			break;
+		case EItemType::Eat:
+			EatItem(PickedUpItem);
+			break;
+		case EItemType::Equip:
+			EquipItem(PickedUpItem);
+			break;
+		}
+
+		if (!PickedUpItem->bIsInfinity)
+		{
+			PickedUpItem->Destroy();
+		}
+	
+	}
+}
+
+void ABaseCharacter::EatItem(APickupItemBase* PickedUpItem)
+{
+}
+
+void ABaseCharacter::UseItem(APickupItemBase* PickedUpItem)
+{
+}
+
+void ABaseCharacter::EquipItem(APickupItemBase* PickedUpItem)
+{
+	Weapon->SetChildActorClass(PickedUpItem->ItemTemplate);
+	AWeaponBase* ChildWeapon = Cast<AWeaponBase>(Weapon->GetChildActor());
+
+	if (ChildWeapon)
+	{
+		if (ChildWeapon->Name.Compare(TEXT("Pistol")) == 0)
+		{
+			ChildWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, ChildWeapon->SocketName);
+			WeaponState = EWeaponState::Pistol;
+			ChildWeapon->SetOwner(this);
+		}
+		else if(ChildWeapon->Name.Compare(TEXT("Rifle")) == 0)
+		{
+			ChildWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, ChildWeapon->SocketName);
+			WeaponState = EWeaponState::Rifle;
+			ChildWeapon->SetOwner(this);
+		}
+		else if (ChildWeapon->Name.Compare(TEXT("GrenadeLauncer")) == 0)
+		{
+			ChildWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::KeepRelativeTransform, ChildWeapon->SocketName);
+			WeaponState = EWeaponState::Rifle;
+			//WeaponState = EWeaponState::GrenadeLauncer;
+			ChildWeapon->SetOwner(this);
+		}
+	}
+}
+
+void ABaseCharacter::StartIronSight()
+{
+	bIsIronSight = true;
+}
+
+void ABaseCharacter::StopIronSight()
+{
+	bIsIronSight = false;
 }

@@ -14,7 +14,7 @@ enum class EWeaponState : uint8
 	Unarmed = 0 UMETA(DisplayName = "Unarmed"),
 	Pistol = 10 UMETA(DisplayName = "Pistol"),
 	Rifle = 20 UMETA(DisplayName = "Rifle"),
-	Launcher = 30 UMETA(DisplayName = "Launcher")
+	GrenadeLauncer = 30 UMETA(DisplayName = "GrenadeLauncer")
 };
 
 
@@ -31,7 +31,7 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-public:
+public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
@@ -51,7 +51,7 @@ protected:
 
 
 public:
-	FORCEINLINE class USpringArmComponent* GetSpringArm() const
+	FORCEINLINE class USpringArmComponent* GetSpringArm() const 
 	{
 		return SpringArm;
 	}
@@ -80,7 +80,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void StopFire();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Character)
 	uint8 bSprint : 1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
@@ -107,8 +107,14 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
 	TObjectPtr<UInputAction> IA_Fire;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
+	TObjectPtr<UInputAction> IA_IronSight;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
+	FHitResult HitResult;
 
+	
 
 	UFUNCTION(BlueprintCallable)
 	void HitReaction();
@@ -126,7 +132,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
 	uint8 bIsFire : 1 = false;
 
-
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
+	uint8 bIsIronSight : 1 = false;
 
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
@@ -139,4 +146,21 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void DoHitReact();
+
+	UFUNCTION()
+	void ProcessBeginOverlap(AActor* OverlappedActor, AActor* OtherActor);
+
+	void EatItem(class APickupItemBase* PickedUpItem);
+
+	void UseItem(class APickupItemBase* PickedUpItem);
+
+	void EquipItem(class APickupItemBase* PickedUpItem);
+
+	void StartIronSight();
+
+	void StopIronSight();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
+	TObjectPtr<UParticleSystem> BloodEffect;
+
 };
