@@ -111,9 +111,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
 	TObjectPtr<UInputAction> IA_IronSight;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
-	FHitResult HitResult;
-
 	
 
 	UFUNCTION(BlueprintCallable)
@@ -135,7 +132,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
 	uint8 bIsIronSight : 1 = false;
 
+
+
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	UFUNCTION(BlueprintCallable)
+	virtual void SpawnHitEffect(FHitResult Hit);
 
 
 	UFUNCTION(BlueprintCallable)
@@ -146,6 +148,7 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	void DoHitReact();
+
 
 	UFUNCTION()
 	void ProcessBeginOverlap(AActor* OverlappedActor, AActor* OtherActor);
@@ -160,7 +163,7 @@ public:
 
 	void StopIronSight();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Data)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Character)
 	TObjectPtr<UParticleSystem> BloodEffect;
 
 };

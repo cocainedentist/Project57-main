@@ -15,6 +15,7 @@
 #include "../Weapon/BaseDamageType.h"
 #include "Engine/DamageEvents.h"
 #include "PickupItemBase.h"
+#include "Components/DecalComponent.h"
 
 
 
@@ -166,9 +167,9 @@ float ABaseCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageE
 		if (Event)
 		{
 			CurrentHP -= DamageAmount;
-
-			 UE_LOG(LogTemp, Warning, TEXT("Point Damage %f %s"), DamageAmount, *(Event->HitInfo.BoneName.ToString()));
 		}
+
+		SpawnHitEffect(Event->HitInfo);
 	}
 	else if (DamageEvent.IsOfType(FRadialDamageEvent::ClassID))
 	{
@@ -217,21 +218,10 @@ void ABaseCharacter::DoHitReact()
 {
 	FName SectionName = FName(FString::Printf(TEXT("%d"), FMath::RandRange(1, 8)));
 	PlayAnimMontage(HitMontage, 1.0f, SectionName);
-
-	UGameplayStatics::SpawnEmitterAtLocation(GetWorld(), BloodEffect,
-		this->GetActorLocation(), // 위치설정해주기
-		this->GetActorRotation()
-	);
 }
 
 void ABaseCharacter::ProcessBeginOverlap(AActor* OverlappedActor, AActor* OtherActor)
 {
-	AProjectileBase* Bullet = Cast<AProjectileBase>(OtherActor);
-	if (Bullet)
-	{
-		DoHitReact();
-	}
-
 	APickupItemBase* PickedUpItem = Cast<APickupItemBase>(OtherActor);
 
 	if (PickedUpItem)
@@ -302,4 +292,18 @@ void ABaseCharacter::StartIronSight()
 void ABaseCharacter::StopIronSight()
 {
 	bIsIronSight = false;
+}
+
+void ABaseCharacter::SpawnHitEffect(FHitResult Hit)
+{
+	if (BloodEffect)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BloodEffect"));
+		UGameplayStatics::SpawnEmitterAtLocation(
+			GetWorld(),
+			BloodEffect,
+			Hit.ImpactPoint,
+			Hit.ImpactNormal.Rotation()
+		);
+	}
 }
